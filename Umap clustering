@@ -1,0 +1,57 @@
+########clustering
+#4c
+library(tibble)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(uwot)
+library(igraph)
+library(mvtnorm)
+## Initial input
+recoded_dat <- read.table("4C.txt",sep = "\t",header = T)
+## Stratify by sex
+strat_dat <- split(recoded_dat, ~sex)
+lapply(strat_dat, head)
+## Summary of initial input
+gendesc_tab <- get_general_descriptives(strat_dat)
+gendesc_tab
+## Estimates of BMI-biomarker associations
+mods <- get_bmimods(strat_dat)
+print(mods)
+summary(mods$mod[mods$sex == "Female" & mods$Biomarker == "tg"][[1]])
+bmicoefs_tab <- get_bmicoefs(mods)
+bmicoefs_tab
+## Generate table with residual values
+residtab <- get_residtabs(strat_dat, mods)
+lapply(residtab, head)
+## Obtaining clusters and probabilities of allocation
+cluster_results <- get_cluster_results(residtab)
+lapply(cluster_results, names)
+umap_models <- get_umap_mod(cluster_results)
+cluster_results <- clean_cluster_results(cluster_results)
+## Table summarising clusters
+clustersummary <- get_clustersummary(cluster_results)
+head(clustersummary)
+cluster_descriptives <- get_cluster_descriptives(cluster_results, strat_dat)
+head(cluster_descriptives)
+## Relationship between BMI and biomarkers in ea4C cluster
+clusbmicoefs <- get_bmicoefs_clusters(cluster_results, strat_dat)
+head(clusbmicoefs)
+## Gathering and saving results
+result_file <- list(
+  General_descriptives = gendesc_tab,
+  BMI_coefficients = bmicoefs_tab,
+  Cluster_results = cluster_results,
+  Cluster_summary = clustersummary,
+  Cluster_descriptives = cluster_descriptives,
+  Cluster_BMI_coefficients = clusbmicoefs
+)
+
+iwalk(
+  umap_models,
+  ~save_uwot(
+    model = .x, 
+    file ="model.y"
+  )
+)
